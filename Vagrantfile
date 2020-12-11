@@ -2,7 +2,7 @@
 # vi: set ft=ruby :
 
 IMAGENAME = "bento/ubuntu-18.04"
-NUM_NODES = 2
+NUM_NODES = 1
 # All Vagrant configuration is done below. The "2" in Vagrant.configure
 # configures the configuration version (we support older styles for
 # backwards compatibility). Please don't change it unless you know what
@@ -10,8 +10,8 @@ NUM_NODES = 2
 Vagrant.configure("2") do |config|
   config.vm.boot_timeout = 800
   config.vm.provider "virtualbox" do |vm|
-    vm.memory = 1024
-    vm.cpus = 1
+    vm.memory = 2048
+    vm.cpus = 2
   end
   
   config.vm.define "k8s-master" do |master|

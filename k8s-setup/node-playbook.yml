@@ -41,8 +41,14 @@
       lineinfile:
         path: /lib/systemd/system/docker.service
         regexp: '^ExecStart=/usr/bin/dockerd'
-        line: ExecStart=/usr/bin/dockerd -H fd:// --containerd=/run/containerd/containerd.sock –exec-opt native.cgroupdriver=systemd
-
+        line: ExecStart=/usr/bin/dockerd -H fd:// --containerd=/run/containerd/containerd.sock –-exec-opt native.cgroupdriver=systemd
+    
+    - name: Restart docker service
+      systemd:
+        name: docker
+        daemon_reload: yes
+        state: restarted
+    
     - name: Add vagrant user to docker group
       user:
         name: vagrant
