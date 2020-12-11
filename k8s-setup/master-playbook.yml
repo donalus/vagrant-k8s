@@ -109,19 +109,6 @@
         name: kubelet
         daemon_reload: yes
         state: restarted
-        
-    # Configure kublet to use systemd
-#    - name: Change kubelet to use systemd and not cgroupfs
-#      lineinfile:
-#        path: /var/lib/kubelet/config.yaml
-#        regexp: '^cgroupDriver: cgroupfs'
-#        line: 'cgroupDriver: systemd'
-
-#    - name: Restart kubelet
-#      service:
-#        name: kubelet
-#        daemon_reload: yes
-#        state: restarted
 
     # Step 2.3: Initialize the Kubernetes cluster with kubeadm using the below code
     # (applicable only on master node).
