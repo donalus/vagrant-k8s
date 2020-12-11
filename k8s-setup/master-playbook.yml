@@ -1,0 +1,170 @@
+---
+- hosts: all
+  become: true
+  tasks:
+    - name: Update apt cache and upgrade packages
+      apt:
+        name: "*"
+        update_cache: yes
+        state: latest
+
+    # https://kubernetes.io/blog/2019/03/15/kubernetes-setup-using-ansible-and-vagrant/
+    # Step 2.1: Install Docker and its dependent components.
+
+    - name: Install packages to allow apt over https
+      apt:
+        state: present
+        pkg:
+          - apt-transport-https
+          - ca-certificates
+          - curl
+          - gnupg-agent
+          - software-properties-common
+
+    - name: Add key for Docker
+      apt_key:
+        url: https://download.docker.com/linux/ubuntu/gpg
+        state: present
+
+    - name: Add apt repository for stable Docker version
+      apt_repository:
+        repo: deb [arch=amd64] https://download.docker.com/linux/ubuntu bionic stable
+        state: present
+
+    - name: Install docker
+      apt:
+        pkg:
+          - docker-ce
+          - docker-ce-cli
+          - containerd.io
+        update_cache: yes
+      notify:
+        - docker status
+
+    # Fixing errors: Docker is currently using cgroupfs and that is not recommended
+
+    - name: Change Docker to use systemd and not cgroupfs
+      lineinfile:
+        path: /lib/systemd/system/docker.service
+        regexp: '^ExecStart=/usr/bin/dockerd'
+        line: "ExecStart=/usr/bin/dockerd -H fd:// --containerd=/run/containerd/containerd.sock –exec-opt native.cgroupdriver=systemd"
+
+    - name: Add vagrant user to docker group
+      user:
+        name: vagrant
+        group: docker
+
+    # Step 2.2: Kubelet will not start if the system has swap enabled,
+    # so we are disabling swap using the below code.
+
+    - name: Remove swapfile from /etc/fstab
+      mount:
+        name: "{{ item }}"
+        fstype: swap
+        state: absent
+      with_items:
+        - swap
+        - none
+
+    - name: Disable swap
+      command: swapoff -a
+      when: ansible_swaptotal_mb > 0
+
+    # Step 2.3: Installing kubelet, kubeadm and kubectl using the below code.
+
+    - name: Add an apt signing key for Kubernetes
+      apt_key:
+        url: https://packages.cloud.google.com/apt/doc/apt-key.gpg
+        state: present
+
+    - name: Adding apt repository for Kubernetes
+      apt_repository:
+        repo: deb https://apt.kubernetes.io/ kubernetes-xenial main
+        state: present
+        filename: kubernetes.list
+
+    - name: Install Kubernetes binaries
+      apt:
+        state: present
+        update_cache: yes
+        pkg:
+          - kubelet
+          - kubeadm
+          - kubectl
+
+    - name: Configure node ip
+      lineinfile:
+        path: /etc/default/kubelet
+        line: KUBELET_EXTRA_ARGS=--node-ip={{ node_ip }}
+        create: yes
+
+    - name: Restart kubelet
+      service:
+        name: kubelet
+        daemon_reload: yes
+        state: restarted
+        
+    # Configure kublet to use systemd
+#    - name: Change kubelet to use systemd and not cgroupfs
+#      lineinfile:
+#        path: /var/lib/kubelet/config.yaml
+#        regexp: '^cgroupDriver: cgroupfs'
+#        line: 'cgroupDriver: systemd'
+
+#    - name: Restart kubelet
+#      service:
+#        name: kubelet
+#        daemon_reload: yes
+#        state: restarted
+
+    # Step 2.3: Initialize the Kubernetes cluster with kubeadm using the below code
+    # (applicable only on master node).
+
+    - name: Initialize the Kubernetes cluster using kubeadm
+      command: kubeadm init --apiserver-advertise-address="192.168.50.10" --apiserver-cert-extra-sans="192.168.50.10"  --node-name k8s-master --pod-network-cidr=192.168.0.0/16
+
+    # Step 2.4: Setup the kube config file for the vagrant user to access the
+    # Kubernetes cluster using the below code.
+    #
+    # Why use these commands and not copy?
+    # copy's src does not escallate permissions; become only applies to the dest
+    # this is why warnings are suppressed
+
+    - name: Setup kubeconfig for vagrant user
+      command: "{{ item }}"
+      with_items:
+      - mkdir -p /home/vagrant/.kube
+      - cp -i /etc/kubernetes/admin.conf /home/vagrant/.kube/config
+      - chown vagrant:vagrant /home/vagrant/.kube/config
+
+
+    # Step 2.5: Setup the container networking provider and the network policy engine 
+    # using the below code.
+    # Adapted using: https://docs.projectcalico.org/getting-started/kubernetes/quickstart
+
+    - name: Install Tigera Calico operator
+      become: false
+      command: kubectl create -f https://docs.projectcalico.org/manifests/tigera-operator.yaml
+
+    - name: Install Calico pod network
+      become: false
+      command: kubectl create -f /vagrant/k8s-setup/calico-manifests/custom-resources.yaml
+
+    # Step 2.6: Generate kube join command for joining the node to the Kubernetes 
+    # cluster and store the command in the file named join-command. 
+
+    - name: Generate join command
+      command: kubeadm token create --print-join-command
+      register: join_command
+
+    - name: Copy join command to local file
+      local_action: copy content="{{ join_command.stdout_lines[0] }}" dest="./join-command"
+
+    # Step 2.7: Setup a handler for checking Docker daemon using the below code.
+
+  handlers:
+    - name: docker status
+      service:
+        name: docker
+        state: started
+
