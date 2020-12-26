@@ -118,23 +118,37 @@
 
     # Step 2.4: Setup the kube config file for the vagrant user to access the
     # Kubernetes cluster using the below code.
-    #
+
+    # Setup idempotent copy of local kube config file
+    - name: Create .kube folder
+      file:
+        path: /home/vagrant/.kube
+        state: directory
+        owner: vagrant
+        group: vagrant
+        mode: 0775
+    
+    - name: Check if local kube config exists
+      stat:
+        path: /home/vagrant/.kube/config
+      register: stat_kube_config
+
     # Why use these commands and not copy?
     # copy's src does not escallate permissions; become only applies to the dest
     # this is why warnings are suppressed
-
     - name: Setup kubeconfig for vagrant user
       command: "{{ item }}"
       with_items:
-      - mkdir -p /home/vagrant/.kube
       - cp -i /etc/kubernetes/admin.conf /home/vagrant/.kube/config
       - chown vagrant:vagrant /home/vagrant/.kube/config
+      when: not stat_kube_config.exists
 
 
     # Step 2.5: Setup the container networking provider and the network policy engine 
     # using the below code.
     # Adapted using: https://docs.projectcalico.org/getting-started/kubernetes/quickstart
-
+    
+    # TODO: Make this idempotent
     - name: Install Tigera Calico operator
       become: false
       command: kubectl create -f https://docs.projectcalico.org/manifests/tigera-operator.yaml
