@@ -3,6 +3,42 @@
 
 IMAGENAME = "bento/ubuntu-18.04"
 NUM_NODES = 1
+ANSIBLE_STR = "ansible"
+
+module OS
+    def OS.windows?
+        (/cygwin|mswin|mingw|bccwin|wince|emx/ =~ RUBY_PLATFORM) != nil
+    end
+
+    def OS.mac?
+        (/darwin/ =~ RUBY_PLATFORM) != nil
+    end
+
+    def OS.unix?
+        !OS.windows?
+    end
+
+    def OS.linux?
+        OS.unix? and not OS.mac?
+    end
+end
+
+is_windows_host = "#{OS.windows?}"
+puts "is_windows_host: #{OS.windows?} #{RUBY_PLATFORM}"
+if OS.windows?
+  puts "Vagrant launched from windows."
+  # Must use local provisioner on Windows
+  ANSIBLE_STR = "ansible_local"
+elsif OS.mac?
+    puts "Vagrant launched from mac."
+elsif OS.unix?
+    puts "Vagrant launched from unix."
+elsif OS.linux?
+    puts "Vagrant launched from linux."
+else
+    puts "Vagrant launched from unknown platform."
+end
+
 # All Vagrant configuration is done below. The "2" in Vagrant.configure
 # configures the configuration version (we support older styles for
 # backwards compatibility). Please don't change it unless you know what
@@ -18,7 +54,7 @@ Vagrant.configure("2") do |config|
     master.vm.box = IMAGENAME
     master.vm.network "private_network", ip: "192.168.50.10"
     master.vm.hostname = "k8s-master"
-    master.vm.provision "ansible_local" do |ansible|
+    master.vm.provision "#{ANSIBLE_STR}" do |ansible|
       ansible.playbook = "k8s-setup/master-playbook.yml"
       ansible.extra_vars = {
         ansible_python_interpreter:"/usr/bin/python3",
@@ -32,7 +68,7 @@ Vagrant.configure("2") do |config|
       node.vm.box = IMAGENAME
       node.vm.network "private_network", ip: "192.168.50.#{i + 10}"
       node.vm.hostname = "node-#{i}"
-      node.vm.provision "ansible_local" do |ansible|
+      node.vm.provision "#{ANSIBLE_STR}" do |ansible|
         ansible.playbook = "k8s-setup/node-playbook.yml"
         ansible.extra_vars = {
           ansible_python_interpreter:"/usr/bin/python3",
