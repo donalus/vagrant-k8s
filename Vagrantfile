@@ -64,10 +64,10 @@ Vagrant.configure("2") do |config|
   end
 
   (1..NUM_NODES).each do |i|
-    config.vm.define "node-#{i}" do |node|
+    config.vm.define "k8s-node-#{i}" do |node|
       node.vm.box = IMAGENAME
       node.vm.network "private_network", ip: "192.168.50.#{i + 10}"
-      node.vm.hostname = "node-#{i}"
+      node.vm.hostname = "k8s-node-#{i}"
       node.vm.provision "#{ANSIBLE_STR}" do |ansible|
         ansible.playbook = "k8s-setup/node-playbook.yml"
         ansible.extra_vars = {
