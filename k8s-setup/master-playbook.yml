@@ -141,7 +141,7 @@
       with_items:
       - cp -i /etc/kubernetes/admin.conf /home/vagrant/.kube/config
       - chown vagrant:vagrant /home/vagrant/.kube/config
-      when: not stat_kube_config.exists
+      when: not stat_kube_config.stat.exists
 
 
     # Step 2.5: Setup the container networking provider and the network policy engine 
