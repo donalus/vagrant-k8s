@@ -151,11 +151,11 @@
     # TODO: Make this idempotent
     - name: Install Tigera Calico operator
       become: false
-      command: kubectl create -f https://docs.projectcalico.org/manifests/tigera-operator.yaml
+      command: kubectl apply -f https://docs.projectcalico.org/manifests/tigera-operator.yaml
 
     - name: Install Calico pod network
       become: false
-      command: kubectl create -f /vagrant/k8s-setup/calico-manifests/custom-resources.yaml
+      command: kubectl apply -f /vagrant/k8s-setup/calico-manifests/custom-resources.yaml
 
     # Step 2.6: Generate kube join command for joining the node to the Kubernetes 
     # cluster and store the command in the file named join-command. 
