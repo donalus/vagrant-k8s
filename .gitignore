@@ -1,2 +1,3 @@
 .vagrant
 k8s-setup/join-command
+kubeconfig

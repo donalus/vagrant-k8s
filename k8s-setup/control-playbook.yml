@@ -8,12 +8,18 @@
         update_cache: yes
         state: latest
 
+    - name: Install build-esential to update VBox Guest
+      apt:
+        pkg: 
+          - build-essential 
+          - dkms 
+          - linux-headers-{{ ansible_kernel }}
+
     # https://kubernetes.io/blog/2019/03/15/kubernetes-setup-using-ansible-and-vagrant/
     # Step 2.1: Install Docker and its dependent components.
 
     - name: Install packages to allow apt over https
       apt:
-        state: present
         pkg:
           - apt-transport-https
           - ca-certificates
@@ -114,7 +120,7 @@
     # (applicable only on master node).
 
     - name: Initialize the Kubernetes cluster using kubeadm
-      command: kubeadm init --apiserver-advertise-address="192.168.50.10" --apiserver-cert-extra-sans="192.168.50.10"  --node-name k8s-master --pod-network-cidr=192.168.0.0/16
+      command: kubeadm init --apiserver-advertise-address="192.168.50.10" --apiserver-cert-extra-sans="192.168.50.10"  --node-name k8s-control --pod-network-cidr=192.168.0.0/16
 
     # Step 2.4: Setup the kube config file for the vagrant user to access the
     # Kubernetes cluster using the below code.
@@ -143,6 +149,11 @@
       - chown vagrant:vagrant /home/vagrant/.kube/config
       when: not stat_kube_config.stat.exists
 
+    - name: Copy kubeconfig to host machine
+      copy: 
+        remote_src: yes
+        src: /home/vagrant/.kube/config
+        dest: /vagrant/kubeconfig
 
     # Step 2.5: Setup the container networking provider and the network policy engine 
     # using the below code.
@@ -170,6 +181,37 @@
         content: "{{ join_command.stdout_lines[0] }}" 
         dest: "./join-command"
       become: false
+
+    # Install load balancer service MetalLB.
+    # https://https://metallb.universe.tf/usage/
+
+    # - name: Check if kube-proxy uses strictARP
+    #   become: false
+    #   command: "kubectl get configmap kube-proxy -n kube-system -o yaml | sed -e \"s/strictARP: false/strictARP: true/\" | kubectl diff -f - -n kube-system"
+    #   register: arp_strict
+    #   ignore_errors: yes
+    #   changed_when: arp_strict.rc != 0
+
+    - name: Change kube-proxy to uses strictARP (pre MetalLB)
+      become: false
+      command: "kubectl get configmap kube-proxy -n kube-system -o yaml | sed -e \"s/strictARP: false/strictARP: true/\" | kubectl apply -f - -n kube-system"
+      register: arp_result
+      ignore_errors: yes
+      changed_when: arp_result.rc != 0
+
+    - name: MetalLB - Create Namespace
+      become: false
+      command: kubectl apply -f https://raw.githubusercontent.com/metallb/metallb/v0.9.5/manifests/namespace.yaml
+
+    - name: MetalLB - Install
+      become: false
+      command: kubectl apply -f https://raw.githubusercontent.com/metallb/metallb/v0.9.5/manifests/metallb.yaml
+
+    # On first install only
+    - name: MetalLB - Create Secret
+      become: false
+      command: kubectl create secret generic -n metallb-system memberlist --from-literal=secretkey="$(openssl rand -base64 128)"
+
 
     # Step 2.7: Setup a handler for checking Docker daemon using the below code.
 

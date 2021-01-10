@@ -2,7 +2,7 @@
 # vi: set ft=ruby :
 
 IMAGENAME = "bento/ubuntu-18.04"
-NUM_NODES = 1
+NUM_NODES = 2
 ANSIBLE_STR = "ansible"
 
 module OS
@@ -50,12 +50,12 @@ Vagrant.configure("2") do |config|
     vm.cpus = 2
   end
   
-  config.vm.define "k8s-master" do |master|
-    master.vm.box = IMAGENAME
-    master.vm.network "private_network", ip: "192.168.50.10"
-    master.vm.hostname = "k8s-master"
-    master.vm.provision "#{ANSIBLE_STR}" do |ansible|
-      ansible.playbook = "k8s-setup/master-playbook.yml"
+  config.vm.define "k8s-control" do |control|
+    control.vm.box = IMAGENAME
+    control.vm.network "private_network", ip: "192.168.50.10"
+    control.vm.hostname = "k8s-control"
+    control.vm.provision "#{ANSIBLE_STR}" do |ansible|
+      ansible.playbook = "k8s-setup/control-playbook.yml"
       ansible.extra_vars = {
         ansible_python_interpreter:"/usr/bin/python3",
         node_ip: "192.168.50.10",

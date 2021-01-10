@@ -2,12 +2,24 @@
 - hosts: all
   become: true
   tasks:
+    - name: Update apt cache and upgrade packages
+      apt:
+        name: "*"
+        update_cache: yes
+        state: latest
+
+    - name: Install build-esential to update VBox Guest
+      apt:
+        pkg: 
+          - build-essential 
+          - dkms 
+          - linux-headers-{{ ansible_kernel }}
+
     # https://kubernetes.io/blog/2019/03/15/kubernetes-setup-using-ansible-and-vagrant/
     # Step 3.1 : Copy Steps 2.1 to 2.3
 
     - name: Install packages to allow apt over https
       apt:
-        state: present
         pkg:
           - apt-transport-https
           - ca-certificates
