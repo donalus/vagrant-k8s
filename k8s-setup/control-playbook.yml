@@ -168,6 +168,10 @@
       become: false
       command: kubectl apply -f /vagrant/k8s-setup/calico-manifests/custom-resources.yaml
 
+    - name: Install calicoctl as K8s api
+      become: false
+      command: kubectl exec -ti -n kube-system calicoctl -- /calicoctl get profiles -o wide
+
     # Step 2.6: Generate kube join command for joining the node to the Kubernetes 
     # cluster and store the command in the file named join-command. 
 
