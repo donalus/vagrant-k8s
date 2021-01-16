@@ -50,12 +50,12 @@ Vagrant.configure("2") do |config|
     vm.cpus = 2
   end
   
-  config.vm.define "k8s-control" do |control|
+  config.vm.define "k8s-controller" do |control|
     control.vm.box = IMAGENAME
     control.vm.network "private_network", ip: "192.168.50.10"
-    control.vm.hostname = "k8s-control"
+    control.vm.hostname = "k8s-controller"
     control.vm.provision "#{ANSIBLE_STR}" do |ansible|
-      ansible.playbook = "k8s-setup/control-playbook.yml"
+      ansible.playbook = "k8s-setup/controller-playbook.yml"
       ansible.extra_vars = {
         ansible_python_interpreter:"/usr/bin/python3",
         node_ip: "192.168.50.10",
